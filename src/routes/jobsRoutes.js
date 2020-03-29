@@ -3,7 +3,8 @@ const jobsRouter = express.Router();
 function router() {
     jobsRouter.route('/')
         .get((req, res) => {
-            res.render('jobsView');
+            let msg = req.query.msg;
+            res.render('jobsView', { msg });
         });
     return jobsRouter;
 }

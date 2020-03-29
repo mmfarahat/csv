@@ -3,66 +3,61 @@ const fs = require('fs');
 const path = require('path');
 const { MongoClient } = require('mongodb');
 const fileRouter = express.Router();
-let csv = require('fast-csv');
+const csv = require('fast-csv');
+const stream = require('stream');
+const amqp = require('amqplib');
+const validator = require('validator');
+
 
 function router() {
     fileRouter.route('/upload')
         .post((req, res) => {
             try {
                 if (req.files) {
-
-                    if (req.files.fileupload.size === 0) {
-                        return next(new Error("Hey, first would you select a file?"));
-                    }
-                    //Use the name of the input field (i.e. "avatar") to retrieve the uploaded file
                     let fileupload = req.files.fileupload;
+                    let csvData = [];
+                    let ext = path.extname(fileupload.name).toLowerCase();
+                    if (fileupload.size === 0 || ext != ".csv") {
+                        return res.redirect('/?err=' + encodeURIComponent('invalid file'));
+                    }
+                    var bufferStream = new stream.PassThrough();
+                    bufferStream.end(fileupload.data);
+                    bufferStream.pipe(csv.parse({ headers: true }))
+                        .on('error', error => console.error(error))
+                        .on('data',
+                            data => {
+                                if (validator.isEmail(data['email'])) {
+                                    csvData.push({
+                                        first_name: data['first_name'],
+                                        last_name: data['last_name'],
+                                        email: data['email'],
+                                        domain: data['email'].split('@')[1]
+                                    });
+                                }
+                            })
+                        .on('end', () => {
 
-                    //Use the mv() method to place the file in upload directory (i.e. "uploads")
-                    let aa = fileupload.mv(path.join(__dirname, '..', '..', '/uploads/', fileupload.name));
+                            amqp.connect('amqp://localhost').then(function (connection) {
+                                connection.createConfirmChannel().then(function (confirmChannel) {
+                                    confirmChannel.sendToQueue('csvQueue', Buffer.from(JSON.stringify(csvData)), {},
+                                        function (err, ok) {
+                                            if (err !== null)
+                                                console.warn('Message nacked!');
+                                            else
+                                                console.log('Message acked');
+                                        });
+                                });
+                            });
+                        });
 
-                    res.send({
-                        status: true,
-                        message: 'file uploaded'
-                    });
+                    return res.redirect('/jobs?msg=' + encodeURIComponent('file uploaded'));
                 } else {
-                    res.send({
-                        status: false,
-                        message: 'No file uploaded'
-                    });
+                    return res.redirect('/?err=' + encodeURIComponent('file is required'));
                 }
             } catch (err) {
-                res.status(500).send(err);
+                return res.redirect('/?err=' + encodeURIComponent('invalid file'));
+
             }
-        });
-
-    fileRouter.route('/insert')
-        .get((req, res) => {
-            (async function insertContacts() {
-                const url = 'mongodb://localhost:27017';
-                const dbName = 'contacts';
-                let client;
-                client = await MongoClient.connect(url);
-
-
-                const db = client.db(dbName);
-                let csvData = [];
-                fs.createReadStream(path.join(__dirname, '..', '..', '/uploads/', 'contacts.csv'))
-                    .pipe(csv.parse({ headers: true }))
-                    .on('error', error => console.error(error))
-                    .on('data',
-                        data => {
-                            csvData.push({
-                                first_name: data['first_name'],
-                                last_name: data['last_name'],
-                                email: data['email'],
-                                domain: data['email'].split('@')[1]
-                            });
-                        })
-                    .on('end', async () => {
-                        const response = await db.collection('contacts').insertMany(csvData);
-                        res.json(response);
-                    });
-            }());
         });
     return fileRouter;
 }

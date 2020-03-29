@@ -5,11 +5,12 @@ const bodyParser = require('body-parser');
 const morgan = require('morgan');
 const _ = require('lodash');
 const path = require('path');
-
-
+const { MongoClient } = require('mongodb');
+const config  = require('./config');
 const app = express();
 const port = process.env.PORT || 4444;
 
+ 
 
 app.use('/css', express.static(path.join(__dirname, '/node_modules/bootstrap/dist/css')));
 app.use('/js', express.static(path.join(__dirname, '/node_modules/bootstrap/dist/js')));
@@ -23,19 +24,34 @@ app.use(fileUpload({
 }));
 app.use(cors());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 const jobsRouter = require('./src/routes/jobsRoutes')();
 const fileRouter = require('./src/routes/fileRoutes')();
+const contactsListRoutes = require('./src/routes/contactsListRoutes')();
 
 app.use('/jobs', jobsRouter);
 app.use('/file', fileRouter);
+app.use('/contactsList', contactsListRoutes);
 
 app.get('/', (req, res) => {
-    res.render(
-        'index'
-    );
+
+    (async function loadIndex() {
+
+        let client;
+        client = await MongoClient.connect(config.dbUrl);
+        const db = client.db(config.dbName);
+
+        let numberOfContacts = await db.collection('contacts').countDocuments({});
+
+        let err = req.query.err;
+        res.render(
+            'index', { error: err, numberOfContacts }
+        );
+    }());
+
+
 });
 
 app.listen(port, () => {
