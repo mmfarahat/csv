@@ -6,11 +6,11 @@ const morgan = require('morgan');
 const _ = require('lodash');
 const path = require('path');
 const { MongoClient } = require('mongodb');
-const config  = require('./config');
+const config = require('./config');
 const app = express();
 const port = process.env.PORT || 4444;
 
- 
+
 
 app.use('/css', express.static(path.join(__dirname, '/node_modules/bootstrap/dist/css')));
 app.use('/js', express.static(path.join(__dirname, '/node_modules/bootstrap/dist/js')));
@@ -52,6 +52,17 @@ app.get('/', (req, res) => {
     }());
 
 
+});
+app.get('/download', function (req, res) {
+    if (req.query.fileName != undefined && req.query.fileName != "") {
+        const file = path.join(__dirname, '/downloads', req.query.fileName);
+        res.download(file, (err) => {
+            if (err)
+                res.send("not found");
+        });
+        return;
+    }
+    res.send("not found");
 });
 
 app.listen(port, () => {

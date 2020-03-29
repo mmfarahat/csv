@@ -1,14 +1,85 @@
 <html>
 
-<head>
 
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <title></title>
+    <meta name="generator" content="Bootply" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css" rel="stylesheet">
+    <!--[if lt IE 9]>
+                <script src="//html5shim.googlecode.com/svn/trunk/html5.js"></script>
+            <![endif]-->
+    <link href="css/styles.css" rel="stylesheet">
 </head>
 
-<body>
-    jobs view
-    <% if (msg!=undefined) { %>
-    <div class="alert"><%= msg %></div>
-    <% } %>
+<body>  
+    <div class="container">
+        <a href="/">home</a>
+        <br/>
+        
+        <% if (msg!=undefined) { %>
+        <div class="alert"><%= msg %></div>
+        <hr>
+        <% } %>
+
+        <h2>jobs view</h2>
+
+
+
+        <hr>
+        <br />
+
+        <table class="table">
+            <thead>
+                <th>
+                    jobId
+                </th>
+                <th>
+                    status
+                </th>
+                <th>
+                    job type
+                </th>
+                <th>
+                    created date
+                </th>
+                <th>
+                    export
+                </th>
+            </thead>
+            <tbody>
+                <% for(var i=0;i<jobs.length;i++){%>
+                <tr>
+                    <td>
+                        <%= jobs[i].jobId%>
+                    </td>
+
+                    <td>
+                        <%= jobs[i].status%>
+                    </td>
+                    <td>
+                        <%= jobs[i].type%>
+                    </td>
+                    <td>
+                        <%= jobs[i].createdDate%>
+                    </td>
+
+                    <td>
+                        <%if(jobs[i].downloadPath!="" && jobs[i].downloadPath!=undefined){%>
+                         <a target="_blank" href="<%= jobs[i].downloadPath%>">export</a>
+                        <%}%>
+                    </td>
+                </tr>
+                <%}%>
+            </tbody>
+        </table>
+    </div>
+    <!-- script references -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.2/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
 </body>
 
 </html>

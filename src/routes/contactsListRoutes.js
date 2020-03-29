@@ -3,7 +3,16 @@ const contactsListRoutes = express.Router();
 const { MongoClient } = require('mongodb');
 const { ObjectId } = require('mongodb');
 const config = require('../../config');
+const csv = require('fast-csv');
+const fs = require('fs');
+const path = require('path');
+const jobsHelper = require('../jobsHelper');
+const amqpHelper = require('../amqpHelper');
+
 function router() {
+    let outputPath = path.join(__dirname, '../..', '/downloads')
+
+
     contactsListRoutes.route('/')
         .get((req, res) => {
             (async function loadContacts() {
@@ -51,6 +60,63 @@ function router() {
             }());
 
         });
+
+    contactsListRoutes.route('/exportAll').get((req, res) => {
+        (async function exportAll() {
+            let response = await jobsHelper.insertNewJob("exportAll", "", "sent");
+
+            let messageObj = {
+                jobId: response.insertedId.toString(),
+                job: "exportAll",
+                outputPath
+            };
+
+            amqpHelper.sendMessageToQueue(messageObj, mkCallback(messageObj.jobId));
+
+            function mkCallback(jobId) {
+                return function (err) {
+                    if (err !== null) {
+                        jobsHelper.updateJobStatus(jobId, "failed")
+                    }
+                    else {
+                        jobsHelper.updateJobStatus(jobId, "waiting in queue")
+                    }
+                };
+            }
+
+            return res.redirect('/jobs');
+        }());
+    });
+
+
+    contactsListRoutes.route('/exportGroupedByDomain').get((req, res) => {
+        (async function exportAll() {
+            let response = await jobsHelper.insertNewJob("exportGroupedByDomain", "", "sent");
+
+            let messageObj = {
+                jobId: response.insertedId.toString(),
+                job: "exportGroupedByDomain",
+                outputPath
+            };
+
+            amqpHelper.sendMessageToQueue(messageObj, mkCallback(messageObj.jobId));
+
+            function mkCallback(jobId) {
+                return function (err) {
+                    if (err !== null) {
+                        jobsHelper.updateJobStatus(jobId, "failed")
+                    }
+                    else {
+                        jobsHelper.updateJobStatus(jobId, "waiting in queue")
+                    }
+                };
+            }
+
+            return res.redirect('/jobs');
+        }());
+    });
+
+
     return contactsListRoutes;
 }
 

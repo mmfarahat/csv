@@ -41,13 +41,34 @@
                                     <div class="error"><%= error %></div>
                                     <% } %>
                                 </form>
-                                <hr>
+                                <hr><br />
                             </div>
                             <div class="row">
                                 <% if (numberOfContacts!=undefined) { %>
                                 <div>number of contacts: <%= numberOfContacts %></div>
                                 <% } %>
                             </div>
+                            <hr>
+                            <div class="row">
+                                <a class="btn btn-primary" href="/contactsList">contacts List</a>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <a class="btn btn-success" href="/jobs">jobs List</a>
+                            </div>
+                            <hr>
+
+                            <div class="row">
+                                <a class="btn btn-danger" href="/contactsList/exportAll">export all contacts</a>
+                            </div>
+                            <hr>
+
+                            <div class="row">
+                                <a class="btn btn-warning" href="/contactsList/exportGroupedByDomain">
+                                    export GroupedBy Domain
+                                </a>
+                            </div>
+                            <hr>
                         </div>
 
 

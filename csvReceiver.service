@@ -4,9 +4,9 @@ Description=csv receiver
 [Service]
 ExecStart=/var/www/csv/receiver.js
 Restart=always
-User=nobody
+#User=nobody
 # Note Debian/Ubuntu uses 'nogroup', RHEL/Fedora uses 'nobody'
-Group=nogroup
+#Group=nogroup
 Environment=PATH=/usr/bin:/usr/local/bin
 Environment=NODE_ENV=production
 WorkingDirectory=/var/www/csv/

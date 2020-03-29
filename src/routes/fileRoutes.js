@@ -1,13 +1,15 @@
 const express = require('express');
-const fs = require('fs');
+
 const path = require('path');
 const { MongoClient } = require('mongodb');
 const fileRouter = express.Router();
 const csv = require('fast-csv');
 const stream = require('stream');
-const amqp = require('amqplib');
+const amqpHelper = require('../amqpHelper');
+const jobsHelper = require('../jobsHelper');
 const validator = require('validator');
-
+const config = require('../../config');
+const { ObjectId } = require('mongodb');
 
 function router() {
     fileRouter.route('/upload')
@@ -20,13 +22,16 @@ function router() {
                     if (fileupload.size === 0 || ext != ".csv") {
                         return res.redirect('/?err=' + encodeURIComponent('invalid file'));
                     }
+
                     var bufferStream = new stream.PassThrough();
                     bufferStream.end(fileupload.data);
                     bufferStream.pipe(csv.parse({ headers: true }))
                         .on('error', error => console.error(error))
                         .on('data',
                             data => {
-                                if (validator.isEmail(data['email'])) {
+                                if (validator.isEmail(data['email'])
+                                    && !validator.isEmpty(data['first_name'])
+                                    && !validator.isEmpty(data['last_name'])) {
                                     csvData.push({
                                         first_name: data['first_name'],
                                         last_name: data['last_name'],
@@ -37,26 +42,36 @@ function router() {
                             })
                         .on('end', () => {
 
-                            amqp.connect('amqp://localhost').then(function (connection) {
-                                connection.createConfirmChannel().then(function (confirmChannel) {
-                                    confirmChannel.sendToQueue('csvQueue', Buffer.from(JSON.stringify(csvData)), {},
-                                        function (err, ok) {
-                                            if (err !== null)
-                                                console.warn('Message nacked!');
-                                            else
-                                                console.log('Message acked');
-                                        });
-                                });
-                            });
-                        });
+                            (async function insertJob() {
+                                let response = await jobsHelper.insertNewJob("import", fileupload.name, "sent");
 
-                    return res.redirect('/jobs?msg=' + encodeURIComponent('file uploaded'));
+                                let messageObj = {
+                                    jobId: response.insertedId.toString(),
+                                    job: "import",
+                                    data: csvData,
+                                };
+
+                                amqpHelper.sendMessageToQueue(messageObj, mkCallback(messageObj.jobId));
+
+                                function mkCallback(jobId) {
+                                    return function (err) {
+                                        if (err !== null) {
+                                            jobsHelper.updateJobStatus(jobId, "failed")
+                                        }
+                                        else {
+                                            jobsHelper.updateJobStatus(jobId, "waiting in queue")
+                                        }
+                                    };
+                                }
+
+                                return res.redirect('/jobs?msg=' + encodeURIComponent('file uploaded'));
+                            }());
+                        });
                 } else {
                     return res.redirect('/?err=' + encodeURIComponent('file is required'));
                 }
             } catch (err) {
                 return res.redirect('/?err=' + encodeURIComponent('invalid file'));
-
             }
         });
     return fileRouter;
