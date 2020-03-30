@@ -90,7 +90,7 @@ function router() {
 
 
     contactsListRoutes.route('/exportGroupedByDomain').get((req, res) => {
-        (async function exportAll() {
+        (async function exportGroupedByDomain() {
             let response = await jobsHelper.insertNewJob("exportGroupedByDomain", "", "sent");
 
             let messageObj = {

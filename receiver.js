@@ -25,20 +25,21 @@ amqp.connect('amqp://localhost', function (error0, connection) {
         });
         try {
             channel.consume(queue, function (msg) {
-                (async function insertContacts() {
-                    channel.ack(msg);
+                (async function processContacts() {
                     let client;
                     client = await MongoClient.connect(url);
                     const db = client.db(dbName);
                     let messageObj = JSON.parse(msg.content.toString());
-                    updateJobStatus(messageObj.jobId, "running");
+                    await updateJobStatus(messageObj.jobId, "running");
 
                     if (messageObj.job == "import") {
-
                         const response = await db.collection('contacts').insertMany(messageObj.data);
+                        await updateJobStatus(messageObj.jobId, "completed", messageObj.batchId);
 
-                   
-                        
+                        const allCompletedResponse = await db.collection('jobs').findOne({ _id: ObjectId(messageObj.jobId), "arrayOfSubBatches.status": { $ne: "completed" } });
+
+                        if (allCompletedResponse == null) //all batches are completed
+                            await updateJobStatus(messageObj.jobId, "completed");
 
                     } else if (messageObj.job == "exportAll") {
                         let outputfilepath = path.join(messageObj.outputPath, "exportAll_" + messageObj.jobId + ".csv");
@@ -50,7 +51,8 @@ amqp.connect('amqp://localhost', function (error0, connection) {
                             ws.write(doc.first_name.toString() + "," + doc.last_name.toString() + "," + doc.email.toString() + "\r\n");
                         }
                         ws.close();
-                        updateJobOutputFileName(messageObj.jobId, "exportAll_" + messageObj.jobId + ".csv");
+
+                        await updateJobOutputFileName(messageObj.jobId, "exportAll_" + messageObj.jobId + ".csv");
 
                     } else if (messageObj.job == "exportGroupedByDomain") {
 
@@ -63,14 +65,17 @@ amqp.connect('amqp://localhost', function (error0, connection) {
                             ws.write(doc._id.toString() + "," + doc.count.toString() + "\r\n");
                         }
                         ws.close();
-                        updateJobOutputFileName(messageObj.jobId, "exportGroupedByDomain_" + messageObj.jobId + ".csv");
+
+                        await updateJobOutputFileName(messageObj.jobId, "exportGroupedByDomain_" + messageObj.jobId + ".csv");
 
                     }
 
-                    updateJobStatus(messageObj.jobId, "completed");
+                    channel.ack(msg);
 
 
                 }());
+            }, {
+                noAck: false
             });
         }
         catch (err) {
@@ -79,16 +84,38 @@ amqp.connect('amqp://localhost', function (error0, connection) {
     });
 });
 
-async function updateJobStatus(jobId, status) {
-    let client;
-    client = await MongoClient.connect(url);
-    const db = client.db(dbName);
-    const response = await db.collection('jobs').updateOne({ _id: ObjectId(jobId) }, { $set: { "status": status } });
+async function updateJobStatus(jobId, status, batchId) {
+    try {
+        let client;
+        client = await MongoClient.connect(url);
+        const db = client.db(dbName);
+        const response = undefined;
+        if (batchId != undefined) {
+            response = await db.collection('jobs').updateOne({ _id: ObjectId(jobId), "arrayOfSubBatches.batchId": batchId }, { $set: { "arrayOfSubBatches.$.status": status } });
+        } else {
+            response = await db.collection('jobs').updateOne({ _id: ObjectId(jobId) }, { $set: { "status": status } });
+        }
+
+        // await db.collection('jobs').updateOne({ _id: ObjectId(jobId) }, { $set: { "status": status } });
+        //> db.jobs.findOne({_id:ObjectId("5e81ce44356d022cab8bd0e7"),"arrayOfSubBatches.status":{$ne: "completed"}})
+        return response;
+
+    }
+    catch (err) {
+        console.log(err);
+    }
 }
 
 async function updateJobOutputFileName(jobId, outputFileName) {
-    let client;
-    client = await MongoClient.connect(url);
-    const db = client.db(dbName);
-    const response = await db.collection('jobs').updateOne({ _id: ObjectId(jobId) }, { $set: { "outputFileName": outputFileName } });
+    try {
+        let client;
+        client = await MongoClient.connect(url);
+        const db = client.db(dbName);
+        const response = await db.collection('jobs').updateOne({ _id: ObjectId(jobId) }, { $set: { "outputFileName": outputFileName, "status": "completed" } });
+        console.log("updateJobOutputFileName response: " + response);
+        return response;
+    }
+    catch (err) {
+        console.log(err);
+    }
 }

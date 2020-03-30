@@ -4,6 +4,9 @@ const sendMessageToQueue = async (messageObj, callback) => {
     let confirmChannel = await connection.createConfirmChannel();
     confirmChannel.sendToQueue('csvQueue', Buffer.from(JSON.stringify(messageObj)), {},
         callback);
+    // setTimeout(function () {
+    //     connection.close();
+    // }, 500);
 }
 
 module.exports = {

@@ -43,26 +43,46 @@ function router() {
                         .on('end', () => {
 
                             (async function insertJob() {
-                                let response = await jobsHelper.insertNewJob("import", fileupload.name, "sent");
 
-                                let messageObj = {
-                                    jobId: response.insertedId.toString(),
-                                    job: "import",
-                                    data: csvData,
-                                };
+                                let arrayOfBatches = splitArray(csvData, 10000);
 
-                                amqpHelper.sendMessageToQueue(messageObj, mkCallback(messageObj.jobId));
-
-                                function mkCallback(jobId) {
-                                    return function (err) {
-                                        if (err !== null) {
-                                            jobsHelper.updateJobStatus(jobId, "failed")
-                                        }
-                                        else {
-                                            jobsHelper.updateJobStatus(jobId, "waiting in queue")
-                                        }
-                                    };
+                                let arrayOfJobSubBatches = [];
+                                for (let i = 0; i < arrayOfBatches.length; i++) {
+                                    const element = arrayOfBatches[i];
+                                    arrayOfJobSubBatches.push({
+                                        batchId: i + 1,
+                                        status: ""
+                                    });
                                 }
+
+                                let response = await jobsHelper.insertNewJob("import", fileupload.name, "sent", arrayOfJobSubBatches);
+
+
+                                for (let i = 0; i < arrayOfBatches.length; i++) {
+                                    let currentBatch = arrayOfBatches[i];
+
+                                    let messageObj = {
+                                        batchId: i + 1,
+                                        jobId: response.insertedId.toString(),
+                                        job: "import",
+                                        data: currentBatch,
+                                    };
+
+                                    amqpHelper.sendMessageToQueue(messageObj, mkCallback(messageObj.jobId, messageObj.batchId));
+
+                                    function mkCallback(jobId, batchId) {
+                                        return function (err) {
+                                            if (err !== null) {
+                                                jobsHelper.updateJobStatus(jobId, "failed", batchId)
+                                            }
+                                            else {
+                                                jobsHelper.updateJobStatus(jobId, "waiting in queue", batchId)
+                                            }
+                                        };
+                                    }
+                                }
+
+
 
                                 return res.redirect('/jobs?msg=' + encodeURIComponent('file uploaded'));
                             }());
@@ -77,4 +97,17 @@ function router() {
     return fileRouter;
 }
 
+
+function splitArray(arr, len) {
+
+    var chunks = [],
+        i = 0,
+        n = arr.length;
+
+    while (i < n) {
+        chunks.push(arr.slice(i, i += len));
+    }
+
+    return chunks;
+}
 module.exports = router;
