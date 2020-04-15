@@ -1,12 +1,12 @@
 # install rabbitMQ on ubuntu
 # full guide => https://www.rabbitmq.com/install-debian.html#apt
 
-sudo apt-get update
-sudo apt-get upgrade
+`sudo apt-get update`
+`sudo apt-get upgrade`
 
 
 ## import PackageCloud signing key
-wget -O - "https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey" | sudo apt-key add -
+`wget -O - "https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey" | sudo apt-key add -`
 
 
 ## Install prerequisites
