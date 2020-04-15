@@ -2,6 +2,8 @@
 # full guide => https://www.rabbitmq.com/install-debian.html#apt
 
 `sudo apt-get update`
+
+
 `sudo apt-get upgrade`
 
 
