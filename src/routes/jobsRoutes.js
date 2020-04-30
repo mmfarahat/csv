@@ -14,7 +14,7 @@ function router() {
                 const db = client.db(config.dbName);
                 let jobs = await db.collection('jobs').find({}, { "sort": [['_id', -1]] }).toArray();
                 jobs = jobs.map(job => ({
-                    jobId: job._id,
+                    jobId: job.jobId,
                     type: job.operation,
                     status: job.status,
                     createdDate: new Date(ObjectId(job._id).getTimestamp()).toLocaleString(),

@@ -1,4 +1,4 @@
-const { Worker } = require('bullmq');
+const { Worker, QueueEvents } = require('bullmq');
 const queueName = "foo";
 const worker = new Worker(queueName, async job => {
     // Will print { foo: 'bar'} for the first job
@@ -13,3 +13,4 @@ worker.on('completed', (job) => {
 worker.on('failed', (job, err) => {
     console.log(`${job.id} has failed with ${err.message}`);
 });
+
