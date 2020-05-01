@@ -5,11 +5,11 @@ const { MongoClient } = require('mongodb');
 const fileRouter = express.Router();
 const csv = require('fast-csv');
 const stream = require('stream');
-const amqpHelper = require('../amqpHelper');
 const jobsHelper = require('../jobsHelper');
 const validator = require('validator');
 const config = require('../../config');
 const { ObjectId } = require('mongodb');
+const bullMQHelper = require('../bullMQHelper');
 
 function router() {
     fileRouter.route('/upload')
@@ -43,26 +43,15 @@ function router() {
                         .on('end', () => {
 
                             (async function insertJob() {
-                                let response = await jobsHelper.insertNewJob("import", fileupload.name, "sent");
+
 
                                 let messageObj = {
-                                    jobId: response.insertedId.toString(),
                                     job: "import",
                                     data: csvData,
                                 };
 
-                                amqpHelper.sendMessageToQueue(messageObj, mkCallback(messageObj.jobId));
-
-                                function mkCallback(jobId) {
-                                    return function (err) {
-                                        if (err !== null) {
-                                            jobsHelper.updateJobStatus(jobId, "failed")
-                                        }
-                                        else {
-                                            jobsHelper.updateJobStatus(jobId, "waiting in queue")
-                                        }
-                                    };
-                                }
+                                const jobResult = await bullMQHelper.sendMessageToQueue(messageObj);
+                                await jobsHelper.insertNewJob(jobResult.id, "import", fileupload.name, "Waiting");
 
                                 return res.redirect('/jobs?msg=' + encodeURIComponent('file uploaded'));
                             }());

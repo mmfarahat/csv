@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 const { MongoClient } = require('mongodb');
 const { Worker, Queue } = require('bullmq');
 const fs = require('fs');
@@ -7,7 +6,7 @@ const { ObjectId } = require('mongodb');
 const path = require('path');
 const url = 'mongodb://localhost:27017';
 const dbName = 'contacts';
-//const util = require('util');
+const util = require('util');
 const jobsHelper = require('./jobsHelper');
 const queueName = "csvQueue";
 
@@ -21,7 +20,8 @@ const worker = new Worker(queueName, async messageObj => {
     client = await MongoClient.connect(url);
     const db = client.db(dbName);
     if (messageObj.data.job == "import") {
-        const response = await db.collection('contacts').insertMany(messageObj.data);
+        //console.log(util.inspect(messageObj, false, null, true /* enable colors */));
+        const response = await db.collection('contacts').insertMany(messageObj.data.data);
     } 
     else if (messageObj.data.job == "exportAll") {
       
@@ -53,13 +53,6 @@ const worker = new Worker(queueName, async messageObj => {
     }
 });
 
-
-// csvQueue.on('waiting', (job) => {
-//     console.log('waiting');
-//     //jobsHelper.updateJobStatus(id, "waiting");
-// });
-
-
 worker.on('completed', ({ id }) => {
     jobsHelper.updateJobStatus(id, "completed");
 });
@@ -67,8 +60,9 @@ worker.on('active', ({ id }) => {
     jobsHelper.updateJobStatus(id, "active");
 });
 
-worker.on('failed', ({ id }) => {
-    jobsHelper.updateJobStatus(id, "failed");
+worker.on('failed', (job) => {
+    
+    jobsHelper.updateJobStatus(job.id, `failed`);
 });
 
 
